@@ -1,0 +1,345 @@
+CREATE DATABASE "dbKutuphane"
+ENCODING='UTF-8'
+LC_COLLATE='Turkish_Turkey.1254'
+LC_CTYPE='Turkish_Turkey.1254'
+OWNER postgres
+TEMPLATE=template0;
+
+CREATE TABLE "durum" (
+	"durum_id" integer not null,
+	"durumad" varchar(20) not null,
+	CONSTRAINT "durumPK" PRIMARY KEY("durum_id")
+); 
+
+CREATE TABLE "kitaplar" (
+	"kitap_id" integer not null,
+	"barkod" integer not null,
+	"kitapad" varchar(40) not null,
+	"sayfasayisi" integer not null,
+	"yayintarihi" date not null,
+	"durum_id" integer not null,
+	CONSTRAINT "kitaplarPK" PRIMARY KEY("kitap_id"),
+	CONSTRAINT "kitaplarFK" FOREIGN KEY("durum_id") REFERENCES "durum"("durum_id") ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE "kategoriler" (
+	"kategoriler_id" integer not null,
+	"kategoriad" varchar(20) not null,
+	CONSTRAINT "kategorilerPK" PRIMARY KEY("kategori_id")
+);
+
+CREATE TABLE "kategori"(
+	"kategori_id" integer not null,
+	"kitap_id" integer,
+	"kategoriler_id" integer,
+	CONSTRAINT "kategoriPK" PRIMARY KEY("kategori_id"),
+	CONSTRAINT "kategoriFK1" FOREIGN KEY("kitap_id") REFERENCES "kitaplar"("kitap_id") ON UPDATE CASCADE ON DELETE CASCADE, 
+	CONSTRAINT "kategoriFK2" FOREIGN KEY("kategoriler_id") REFERENCES "kategoriler"("kategoriler_id") ON UPDATE CASCADE ON DELETE CASCADE 
+);
+
+CREATE TABLE "yazarlar"(
+	"yazar_id" integer not null,
+	"yazarad" varchar(20) not null,
+	"yazarsoyad" varchar(20) not null,
+	"yazarmail" text,
+	CONSTRAINT "yazarlarPK" PRIMARY KEY("yazar_id")
+);
+
+CREATE TABLE "yazar"(
+	"isbn" integer not null,
+	"yazar_id" integer,
+	"kitap_id" integer,
+	CONSTRAINT "yazarPK" PRIMARY KEY("isbn"),
+	CONSTRAINT "yazarFK1" FOREIGN KEY("kitap_id") REFERENCES "kitaplar"("kitap_id") ON UPDATE CASCADE ON DELETE CASCADE,
+	CONSTRAINT "yazarFK2" FOREIGN KEY("yazar_id") REFERENCES "yazarlar"("yazar_id") ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE "yayinevleri"(
+	"yayinevi_id" integer not null,
+	"yayineviad" varchar(20) not null,
+	"yayinevisehir" varchar(20),
+	CONSTRAINT "yayineviPK" PRIMARY KEY("yayinevi_id")
+);
+
+CREATE TABLE "yayin"(
+	"yayin_id" integer,
+	"kitap_id" integer,
+	"yayinevi_id" integer,
+	CONSTRAINT "yayinPK" PRIMARY KEY("yayin_id"),
+	CONSTRAINT "yayinFK1" FOREIGN KEY("kitap_id") REFERENCES "kitaplar"("kitap_id") ON UPDATE CASCADE ON DELETE CASCADE,
+	CONSTRAINT "yayinFK2" FOREIGN KEY("yayinevi_id") REFERENCES "yayinevleri"("yayinevi_id") ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE "kutuphaneler"(
+	"kutuphaneler_id" integer not null,
+	"kutuphanead" varchar(40) not null,
+	"kutuphanesehir" varchar(20),
+	CONSTRAINT "kutuphanelerPK" PRIMARY KEY("kutuphane_id")
+);
+
+CREATE TABLE "kutuphane"(
+	"kutuphane_id" integer not null,
+	"kitap_id" integer,
+	"kutuphaneler_id" integer,
+	CONSTRAINT "kutuphanePK" PRIMARY KEY("kutuphane_id"),
+	CONSTRAINT "kutuphaneFK1" FOREIGN KEY("kitap_id") REFERENCES "kitaplar"("kitap_id") ON UPDATE CASCADE ON DELETE CASCADE,
+	CONSTRAINT "kutuphaneFK2" FOREIGN KEY("kutuphaneler_id") REFERENCES "kutuphaneler"("kutuphaneler_id") ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE "basimturu"(
+	"basim_id" integer not null,
+	"kapakad" varchar(40) not null,
+	CONSTRAINT "basimPK" PRIMARY KEY("basim_id")
+);
+
+CREATE TABLE "tur"(
+	"tur_id" integer not null,
+	"kitap_id" integer,
+	"basim_id" integer,
+	CONSTRAINT "turPK" PRIMARY KEY("tur_id"),
+	CONSTRAINT "turFK1" FOREIGN KEY("kitap_id") REFERENCES "kitaplar"("kitap_id") ON UPDATE CASCADE ON DELETE CASCADE,
+	CONSTRAINT "turFK2" FOREIGN KEY("basim_id") REFERENCES "basimturu"("basim_id") ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE "uyeler"(
+	"uye_id" integer not null,
+	"uyead" varchar(20) not null,
+	"uyesoyad" varchar(20) not null,
+	"uyecinsiyet" text not null,
+	"uyemail" text,
+    "uyetipi_id" integer not null,
+	CONSTRAINT "uyelerPK" PRIMARY KEY("uye_id"),
+	CONSTRAINT "uyelerFK" FOREIGN KEY("uyetipi_id") REFERENCES "durum"("uyetipi_id") ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE "odunc"(
+	"odunc_id" integer not null,
+	"kitap_id" integer,
+	"uye_id" integer,
+	CONSTRAINT "oduncPK" PRIMARY KEY("odunc_id"),
+	CONSTRAINT "oduncFK1" FOREIGN KEY("kitap_id") REFERENCES "kitaplar"("kitap_id") ON UPDATE CASCADE ON DELETE CASCADE,
+	CONSTRAINT "oduncFK2" FOREIGN KEY("uye_id") REFERENCES "uyeler"("uye_id") ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE "uyetipi" (
+	"uyetipi_id" integer not null,
+	"uyetipiad" varchar(20) not null,
+	CONSTRAINT "uyetipiPK" PRIMARY KEY("uyetipi_id")
+);
+
+--TRİGGER VE TRİGGER FONKSİYON
+
+create or replace function iyazar()
+returns trigger
+as
+$$
+begin
+	update toplamyazar set sayi=sayi+1;
+return new;
+end;
+$$
+language plpgsql;
+
+create trigger iyazarlar
+after insert
+on yazarlar
+for each row
+execute procedure iyazar();
+
+create or replace function dyazar()
+returns trigger
+as
+$$
+begin
+	update toplamyazar set sayi=sayi-1;
+return new;
+end;
+$$
+language plpgsql;
+
+create trigger dyazarlar
+after delete
+on yazarlar
+for each row
+execute procedure dyazar();
+
+create or replace function ikitap()
+returns trigger
+as
+$$
+begin
+	update toplamkitap set sayi=sayi+1;
+return new;
+end;
+$$
+language plpgsql;
+
+create trigger ikitaplar
+after insert
+on kitaplar
+for each row
+execute procedure ikitap();
+
+create or replace function dkitap()
+returns trigger
+as
+$$
+begin
+	update toplamkitap set sayi=sayi-1;
+return new;
+end;
+$$
+language plpgsql;
+
+create trigger dkitaplar
+after delete
+on kitaplar
+for each row
+execute procedure dkitap();
+
+create or replace function iuye()
+returns trigger
+as
+$$
+begin
+	update toplamuye set sayi=sayi+1;
+return new;
+end;
+$$
+language plpgsql;
+
+create trigger iuyeler
+after insert
+on uyeler
+for each row
+execute procedure iuye();
+
+create or replace function duye()
+returns trigger
+as
+$$
+begin
+	update toplamuye set sayi=sayi-1;
+return new;
+end;
+$$
+language plpgsql;
+
+create trigger duyeler
+after delete
+on uyeler
+for each row
+execute procedure duye();
+
+--FONKSİYON
+
+create function listeleyazar()
+returns table
+(
+	kitapkodu integer,
+	yazaradı varchar,
+	yazarsoyadı varchar,
+	kitapadı varchar
+)
+as
+$$
+begin
+return query
+select isbn,yazarad,yazarsoyad,kitapad from yazar join yazarlar on yazar.yazar_id = yazarlar.yazar_id join kitaplar on yazar.kitap_id = kitaplar.kitap_id order by isbn;
+end;
+$$
+language plpgsql;
+
+create function listeleodunc()
+returns table
+(
+	kitapkodu integer,
+	kitapadı varchar,
+	üyeadı varchar,
+	üyesoyadı varchar
+)
+as
+$$
+begin
+return query
+select odunc_id,kitapad,uyead,uyesoyad from odunc join uyeler on odunc.uye_id = uyeler.uye_id join kitaplar on odunc.kitap_id = kitaplar.kitap_id order by odunc_id;
+end;
+$$
+language plpgsql;
+
+create function listeletur()
+returns table
+(
+	kitapkodu integer,
+	kitapadı varchar,
+	kapaktürüadı varchar
+)
+as
+$$
+begin
+return query
+select tur_id,kitapad,kapakad from tur join basimturu on tur.basim_id = basimturu.basim_id join kitaplar on tur.kitap_id = kitaplar.kitap_id order by tur_id;
+end;
+$$
+language plpgsql;
+
+create function listeleyayin()
+returns table
+(
+	yayinkodu integer,
+	yayıneviadı varchar,
+	kitapadı varchar
+)
+as
+$$
+begin
+return query
+select yayin_id,yayineviad,kitapad from yayin join yayinevleri on yayin.yayinevi_id = yayinevleri.yayinevi_id join kitaplar on yayin.kitap_id = kitaplar.kitap_id order by yayin_id;
+end;
+$$
+language plpgsql;
+
+create function listelekutuphane()
+returns table
+(
+	kutuphanekodu integer,
+	kutuphaneadı varchar,
+	kitapadı varchar,
+	sehir varchar
+)
+as
+$$
+begin
+return query
+select kutuphane_id,kutuphanead,kitapad,kutuphanesehir from kutuphane join kutuphaneler on kutuphane.kutuphaneler_id = kutuphaneler.kutuphaneler_id join kitaplar on kutuphane.kitap_id = kitaplar.kitap_id order by kutuphane_id;
+end;
+$$
+language plpgsql;
+
+create function listelekategori()
+returns table
+(
+	kategorikodu integer,
+	kategoriadı varchar,
+	kitapadı varchar
+)
+as
+$$
+begin
+return query
+select kategori_id,kategoriad,kitapad from kategori join kategoriler on kategori.kategoriler_id = kategoriler.kategoriler_id join kitaplar on kategori.kitap_id = kitaplar.kitap_id order by kategori_id;
+end;
+$$
+language plpgsql;
+
+
+--VİEW
+
+-- create view viewkitaplar
+-- as
+-- select kitap_id,barkod,kitapad,sayfasayisi,yayintarihi,durumad from kitaplar join durum on kitaplar.durum_id=durum.durum_id order by kitap_id;
+
+create view viewuyeler
+as
+select uye_id,uyead,uyesoyad,uyecinsiyet,uyemail,uyetipiad  from uyeler join uyetipi on uyeler.uyetipi_id=uyetipi.uyetipi_id order by uye_id;
+
